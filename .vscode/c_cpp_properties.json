@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/src/include/SDL3-3.2.22/x86_64-w64-mingw32/include",
+                "${workspaceFolder}/src/include/SDL3_image-3.2.4/x86_64-w64-mingw32/include",
+                "${workspaceFolder}/src/include/SDL3_ttf-3.2.2/x86_64-w64-mingw32/include",
+                "${workspaceFolder}/src",
+                "${default}"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "C:/w64devkit/bin/g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}
