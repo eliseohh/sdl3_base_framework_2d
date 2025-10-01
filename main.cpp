@@ -4,6 +4,7 @@
 #include <SDL3_Image/SDL_image.h>
 #include <iostream>
 #include "status/ElementOrientation.h"
+#include "status/SpeedStatus.h"
 #include "character/Character.h"
 
 static SDL_Window *window = NULL;
@@ -16,13 +17,12 @@ static SDL_Renderer *renderer = NULL;
 #define SPRITE_HEIGHT 16
 #define NEXT_SPRITE_X 34
 #define NEXT_SPRITE_Y 32
-#define BASE_POSITION_IDLE 17
+#define BASE_POSITION 17
 #define BASE_PLAYER_SPEED 80.0f
 
 static float spriteYPosition(int playerOrientation);
-static float spriteIndexIdleOrMovement();
+static float spriteIndexIdleOrMovement(Uint64 nowMs);
 
-bool idle = true;
 float positionX = 100.0f;
 float positionY = 100.0f;
 
@@ -47,7 +47,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    player = new character::Character("assets/Sprout Lands - Sprites - premium pack/Characters/Basic Charakter Spritesheet.png", renderer, positionX, positionY);
+
+    player = new character::Character(
+        "assets/Sprout Lands - Sprites - premium pack/Characters/Basic Charakter Spritesheet.png",
+        renderer, positionX, positionY);
+
     characterSpriteSheet = player->renderTexture();
     if (!characterSpriteSheet)
     {
@@ -69,13 +73,24 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_KEY_DOWN)
     {
         keys[event->key.scancode] = true;
-        idle = false;
+        if (keys[SDL_SCANCODE_LSHIFT])
+            player->setBaseSpeed(status::SpeedStatus::RUNNING);
+        else if (keys[SDL_SCANCODE_LCTRL])
+            player->setBaseSpeed(status::SpeedStatus::CROUCHING);
+        else
+            player->setBaseSpeed(status::SpeedStatus::NORMAL);
+
+        player->setMoving(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D]);
+        
     }
     if (event->type == SDL_EVENT_KEY_UP)
     {
         keys[event->key.scancode] = false;
-        idle = !(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] ||
-                 keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_LSHIFT]);
+        player->setBaseSpeed(!keys[SDL_SCANCODE_LSHIFT]  ? status::SpeedStatus::NORMAL
+                             : !keys[SDL_SCANCODE_LCTRL] ? status::SpeedStatus::RUNNING
+                                                         : status::SpeedStatus::CROUCHING);
+
+        player->setMoving(!(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D]));
     }
 
     return SDL_APP_CONTINUE;
@@ -88,28 +103,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     Uint64 now = SDL_GetTicks();
 
     SDL_RenderClear(renderer);
-
     SDL_SetTextureScaleMode(characterSpriteSheet, SDL_ScaleMode::SDL_SCALEMODE_NEAREST);
 
-    SDL_FRect srcrect = {
-        spriteIndexIdleOrMovement(),
-        spriteYPosition(player->getOrientation()),
-        SPRITE_WIDTH,
-        SPRITE_HEIGHT};
-
-    player->getPosition(positionX, positionY);
-
-    SDL_FRect dstrect = {positionX, positionY, srcrect.w, srcrect.h};
-
-    SDL_RenderTexture(renderer, characterSpriteSheet, &srcrect, &dstrect);
-    SDL_FRect srcRect2 = {17.0f, 16.0f, SPRITE_WIDTH, SPRITE_HEIGHT};
-    SDL_FRect dstRect2 = {300.0f, 200.0f, srcrect.w * 4, srcrect.h * 4};
-    SDL_RenderTexture(renderer, characterSpriteSheet, &srcRect2, &dstRect2);
-
-    float deltaTime = (last > 0) ? (now - last) / 1000.0f : 0.0f;
+    float deltaTime = (last > 0) ? (now - last) / 1000.0f : 0.0f; // seg
     last = now;
     if (deltaTime > 0.05f)
-        deltaTime = 0.05f; // evitar warping
+        deltaTime = 0.05f;
 
     float dx = 0.0f;
     float dy = 0.0f;
@@ -135,7 +134,22 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         player->setOrientation(status::ElementOrientation::RIGHT);
     }
 
-    // normalizar para diagonales
+    player->getPosition(positionX, positionY);
+
+    SDL_FRect srcrect = {
+        spriteIndexIdleOrMovement(now),
+        spriteYPosition(player->getOrientation()),
+        SPRITE_WIDTH,
+        SPRITE_HEIGHT};
+
+    SDL_FRect dstrect = {positionX, positionY, srcrect.w, srcrect.h};
+
+    SDL_RenderTexture(renderer, characterSpriteSheet, &srcrect, &dstrect);
+
+    SDL_FRect srcRect2 = {17.0f, 16.0f, SPRITE_WIDTH, SPRITE_HEIGHT};
+    SDL_FRect dstRect2 = {300.0f, 200.0f, srcrect.w * 4, srcrect.h * 4};
+    SDL_RenderTexture(renderer, characterSpriteSheet, &srcRect2, &dstRect2);
+
     float length = SDL_sqrtf(dx * dx + dy * dy);
     if (length > 0.0f)
     {
@@ -144,43 +158,41 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     SDL_FRect nextRectX = dstrect;
-    nextRectX.x += dx * BASE_PLAYER_SPEED * deltaTime;
-
+    nextRectX.x += dx * player->getSpeed() * deltaTime;
     if (!SDL_HasRectIntersectionFloat(&nextRectX, &dstRect2))
-    {
-        if (keys[SDL_SCANCODE_LSHIFT])
-            player->run(dx * BASE_PLAYER_SPEED * deltaTime, 0.0f);
-        else
-            player->move(dx * BASE_PLAYER_SPEED * deltaTime, 0.0f);
-    }
+        player->move(dx * player->getSpeed() * deltaTime, 0.0f);
 
     SDL_FRect nextRectY = dstrect;
-    nextRectY.y += dy * BASE_PLAYER_SPEED * deltaTime;
-
+    nextRectY.y += dy * player->getSpeed() * deltaTime;
     if (!SDL_HasRectIntersectionFloat(&nextRectY, &dstRect2))
-    {
-        if (keys[SDL_SCANCODE_LSHIFT])
-            player->run(0.0f, dy * BASE_PLAYER_SPEED * deltaTime);
-        else
-            player->move(0.0f, dy * BASE_PLAYER_SPEED * deltaTime);
-    }
+        player->move(0.0f, dy * player->getSpeed() * deltaTime);
 
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
 
-/* Animación */
-static float spriteIndexIdleOrMovement()
+static float spriteIndexIdleOrMovement(Uint64 nowMs)
 {
-    if (idle)
+    if (!player->isMoving())
     {
-        return ((SDL_GetTicks() / 1000) % 2) * (SPRITE_WIDTH + NEXT_SPRITE_X) + BASE_POSITION_IDLE;
+        return ((nowMs / 1000) % 2) * (SPRITE_WIDTH + NEXT_SPRITE_X) + BASE_POSITION;
     }
     else
     {
-        int rawIndex = (SDL_GetTicks() / 200) % 4;
+        int annimationSpeedMs = 1000;
+        if (player->getSpeedStatus() == status::SpeedStatus::RUNNING)
+        {
+            annimationSpeedMs = 200;
+        }
+
+        if (player->getSpeedStatus() == status::SpeedStatus::CROUCHING)
+        {
+            annimationSpeedMs = 1500;
+        }
+
+        int rawIndex = (nowMs / annimationSpeedMs) % 4;
         int spriteIndex = (rawIndex < 2) ? rawIndex + 2 : rawIndex;
-        return spriteIndex * (SPRITE_WIDTH + NEXT_SPRITE_X) + BASE_POSITION_IDLE;
+        return spriteIndex * (SPRITE_WIDTH + NEXT_SPRITE_X) + BASE_POSITION;
     }
 }
 
@@ -189,11 +201,15 @@ static float spriteYPosition(int playerOrientation)
     return 16.0f + ((NEXT_SPRITE_Y + SPRITE_HEIGHT) * playerOrientation);
 }
 
-/* Quit */
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
     if (characterSpriteSheet)
         SDL_DestroyTexture(characterSpriteSheet);
     if (player)
         delete player;
+    if (renderer)
+        SDL_DestroyRenderer(renderer);
+    if (window)
+        SDL_DestroyWindow(window);
+    SDL_Quit();
 }

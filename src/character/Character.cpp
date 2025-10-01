@@ -16,10 +16,44 @@ namespace character
     this->positionY += y;
   }
 
-  void Character::run(float x, float y)
+  void Character::setBaseSpeed(status::SpeedStatus speedStatus)
   {
-    this->positionX += 2 * x;
-    this->positionY += 2 * y;
+    this->speedStatus = speedStatus;
+    switch (speedStatus)
+    {
+    case status::SpeedStatus::NORMAL:
+      this->baseSpeed = 80.0f;
+      break;
+    case status::SpeedStatus::RUNNING:
+      this->baseSpeed = 160.0f;
+      break;
+    case status::SpeedStatus::CROUCHING:
+      this->baseSpeed = 40.0f;
+      break;
+    default:
+      this->baseSpeed = 80.0f;
+      break;
+    }
+  }
+
+  status::SpeedStatus Character::getSpeedStatus() const
+  {
+    return this->speedStatus;
+  }
+
+  float Character::getSpeed() const
+  {
+    return this->baseSpeed;
+  }
+
+  bool Character::isMoving() const
+  {
+    return this->moving;
+  }
+
+  void Character::setMoving(bool moving)
+  {
+    this->moving = moving;
   }
 
   void Character::attack()
