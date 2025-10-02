@@ -1,6 +1,6 @@
 #pragma once
 
-namespace status
+namespace constants
 {
   enum ElementOrientation
   {

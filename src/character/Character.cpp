@@ -8,26 +8,25 @@ namespace character
                        float positionX, float positionY)
       : renderable::Renderable(renderer, file),
         positionX(positionX),
-        positionY(positionY),
-        spriteFile(file) {}
+        positionY(positionY) {}
   void Character::move(float x, float y)
   {
     this->positionX += x;
     this->positionY += y;
   }
 
-  void Character::setBaseSpeed(status::SpeedStatus speedStatus)
+  void Character::setBaseSpeed(constants::SpeedStatus speedStatus)
   {
     this->speedStatus = speedStatus;
     switch (speedStatus)
     {
-    case status::SpeedStatus::NORMAL:
+    case constants::SpeedStatus::NORMAL:
       this->baseSpeed = 80.0f;
       break;
-    case status::SpeedStatus::RUNNING:
+    case constants::SpeedStatus::RUNNING:
       this->baseSpeed = 160.0f;
       break;
-    case status::SpeedStatus::CROUCHING:
+    case constants::SpeedStatus::CROUCHING:
       this->baseSpeed = 40.0f;
       break;
     default:
@@ -36,7 +35,7 @@ namespace character
     }
   }
 
-  status::SpeedStatus Character::getSpeedStatus() const
+  constants::SpeedStatus Character::getSpeedStatus() const
   {
     return this->speedStatus;
   }
@@ -72,12 +71,12 @@ namespace character
     y = this->positionY;
   }
 
-  void Character::setOrientation(status::ElementOrientation orientation)
+  void Character::setOrientation(constants::ElementOrientation orientation)
   {
     this->orientation = orientation;
   }
 
-  status::ElementOrientation Character::getOrientation() const
+  constants::ElementOrientation Character::getOrientation() const
   {
     return this->orientation;
   }

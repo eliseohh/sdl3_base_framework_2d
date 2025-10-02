@@ -1,10 +1,10 @@
-#define SDL_MAIN_USE_CALLBACKS 1 /* use the callbacks instead of main() */
+#define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_Image/SDL_image.h>
 #include <iostream>
-#include "status/ElementOrientation.h"
-#include "status/SpeedStatus.h"
+#include "constants/ElementOrientation.h"
+#include "constants/SpeedStatus.h"
 #include "character/Character.h"
 
 static SDL_Window *window = NULL;
@@ -31,7 +31,6 @@ character::Character *player;
 
 static bool keys[SDL_SCANCODE_COUNT] = {false};
 
-/* Init */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     SDL_SetAppMetadata("Example Renderer Points", "1.0", "com.example.renderer-points");
@@ -62,7 +61,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     return SDL_APP_CONTINUE;
 }
 
-/* Events */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
     if (event->type == SDL_EVENT_QUIT)
@@ -71,32 +69,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     }
 
     if (event->type == SDL_EVENT_KEY_DOWN)
-    {
         keys[event->key.scancode] = true;
-        if (keys[SDL_SCANCODE_LSHIFT])
-            player->setBaseSpeed(status::SpeedStatus::RUNNING);
-        else if (keys[SDL_SCANCODE_LCTRL])
-            player->setBaseSpeed(status::SpeedStatus::CROUCHING);
-        else
-            player->setBaseSpeed(status::SpeedStatus::NORMAL);
 
-        player->setMoving(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D]);
-        
-    }
     if (event->type == SDL_EVENT_KEY_UP)
-    {
         keys[event->key.scancode] = false;
-        player->setBaseSpeed(!keys[SDL_SCANCODE_LSHIFT]  ? status::SpeedStatus::NORMAL
-                             : !keys[SDL_SCANCODE_LCTRL] ? status::SpeedStatus::RUNNING
-                                                         : status::SpeedStatus::CROUCHING);
-
-        player->setMoving(!(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D]));
-    }
 
     return SDL_APP_CONTINUE;
 }
 
-/* Main loop */
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     static Uint64 last = 0;
@@ -105,7 +85,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_RenderClear(renderer);
     SDL_SetTextureScaleMode(characterSpriteSheet, SDL_ScaleMode::SDL_SCALEMODE_NEAREST);
 
-    float deltaTime = (last > 0) ? (now - last) / 1000.0f : 0.0f; // seg
+    float deltaTime = (last > 0) ? (now - last) / 1000.0f : 0.0f;
     last = now;
     if (deltaTime > 0.05f)
         deltaTime = 0.05f;
@@ -113,26 +93,37 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     float dx = 0.0f;
     float dy = 0.0f;
 
+    // Dirección de movimiento
     if (keys[SDL_SCANCODE_W])
     {
         dy -= 1.0f;
-        player->setOrientation(status::ElementOrientation::UP);
+        player->setOrientation(constants::ElementOrientation::UP);
     }
     if (keys[SDL_SCANCODE_S])
     {
         dy += 1.0f;
-        player->setOrientation(status::ElementOrientation::DOWN);
+        player->setOrientation(constants::ElementOrientation::DOWN);
     }
     if (keys[SDL_SCANCODE_A])
     {
         dx -= 1.0f;
-        player->setOrientation(status::ElementOrientation::LEFT);
+        player->setOrientation(constants::ElementOrientation::LEFT);
     }
     if (keys[SDL_SCANCODE_D])
     {
         dx += 1.0f;
-        player->setOrientation(status::ElementOrientation::RIGHT);
+        player->setOrientation(constants::ElementOrientation::RIGHT);
     }
+
+    player->setMoving(keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_A] ||
+                      keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_D]);
+
+    if (keys[SDL_SCANCODE_LSHIFT])
+        player->setBaseSpeed(constants::SpeedStatus::RUNNING);
+    else if (keys[SDL_SCANCODE_LCTRL])
+        player->setBaseSpeed(constants::SpeedStatus::CROUCHING);
+    else
+        player->setBaseSpeed(constants::SpeedStatus::NORMAL);
 
     player->getPosition(positionX, positionY);
 
@@ -143,7 +134,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SPRITE_HEIGHT};
 
     SDL_FRect dstrect = {positionX, positionY, srcrect.w, srcrect.h};
-
     SDL_RenderTexture(renderer, characterSpriteSheet, &srcrect, &dstrect);
 
     SDL_FRect srcRect2 = {17.0f, 16.0f, SPRITE_WIDTH, SPRITE_HEIGHT};
@@ -180,15 +170,10 @@ static float spriteIndexIdleOrMovement(Uint64 nowMs)
     else
     {
         int annimationSpeedMs = 1000;
-        if (player->getSpeedStatus() == status::SpeedStatus::RUNNING)
-        {
+        if (player->getSpeedStatus() == constants::SpeedStatus::RUNNING)
             annimationSpeedMs = 200;
-        }
-
-        if (player->getSpeedStatus() == status::SpeedStatus::CROUCHING)
-        {
+        if (player->getSpeedStatus() == constants::SpeedStatus::CROUCHING)
             annimationSpeedMs = 1500;
-        }
 
         int rawIndex = (nowMs / annimationSpeedMs) % 4;
         int spriteIndex = (rawIndex < 2) ? rawIndex + 2 : rawIndex;
